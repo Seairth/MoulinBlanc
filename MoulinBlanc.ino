@@ -2,14 +2,22 @@
 #include "Stepper2.h"
 #include "LEDStrip.h"
 
-OneShotButton toggleStepper(10,LOW);
-OneShotButton toggleBrightness(11,LOW);
-OneShotButton togglePattern(12,LOW);
-OneShotButton toggleColor(A1,LOW);
+#define BUTTON_CENTER 9
+#define BUTTON_UP     10
+#define BUTTON_LEFT   11
+#define BUTTON_DOWN   12
+#define BUTTON_RIGHT  A1
+
+OneShotButton toggleStepper(BUTTON_UP,LOW);
+OneShotButton toggleBrightness(BUTTON_DOWN,LOW);
+OneShotButton togglePattern(BUTTON_LEFT,LOW);
+OneShotButton toggleColor(BUTTON_RIGHT,LOW);
+OneShotButton showFinale(BUTTON_CENTER,LOW);
 
 Stepper2 stepper(A2,A3,A4,A5,true,2000);
 
 LEDStrip strip(8,3,6,132);
+
 
 void setup() {
   SetRandomSeed();
