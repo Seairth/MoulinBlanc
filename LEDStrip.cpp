@@ -6,9 +6,13 @@
 #define LED_STRIP_PATTERN_COUNT 5
 
 #define LED_STRIP_TIMESCALE 50
+#define LED_STRIP_1_SECOND  1000 / LED_STRIP_TIMESCALE
 #define LED_STRIP_5_SECONDS 5000 / LED_STRIP_TIMESCALE
+#define LED_STRIP_8_SECONDS 8000 / LED_STRIP_TIMESCALE
 
 const static RgbwColor led_strip_color_off(0,0,0,0);
+const static RgbwColor finale_color_red(HIGH_BRIGHTNESS,0,0,0);
+const static RgbwColor finale_color_white(0,0,0,HIGH_BRIGHTNESS);
 
 LEDStrip::LEDStrip(uint8_t pin, uint8_t white_pin, uint8_t red_pin, uint16_t count) : strip(count, pin), animations(1,LED_STRIP_TIMESCALE)
 {
@@ -27,6 +31,9 @@ LEDStrip::LEDStrip(uint8_t pin, uint8_t white_pin, uint8_t red_pin, uint16_t cou
   this->brightness = led_brightness_off;
   this->red = false;
   this->patterned = false;
+  
+  this->finale = -1;
+  
   this->pattern_group = 0;
   this->pattern_refresh = false;
 
@@ -41,13 +48,45 @@ void LEDStrip::Setup()
   strip.ClearTo(this->color);
 }
 
-void LEDStrip::Update()
+bool LEDStrip::Update(bool finale)
+{
+  if(finale)
+  {
+    if(this->finale == -1)
+    {
+      // start of finale!
+      this->StartFinale();
+    }
+    
+    bool updating = this->UpdateFinale();
+
+    if (!updating)
+      this->EndFinale();
+    
+    return updating;
+  }
+  else
+  {
+    if(this->finale != -1)
+    {
+      // finale canceled!
+      this->EndFinale();
+    }
+
+    // not in finale.  just business as usual...
+    this->UpdateInternal();
+
+    return false;
+  }
+}
+
+void LEDStrip::UpdateInternal()
 {
   static const led_pattern patterns[2][LED_STRIP_PATTERN_COUNT] = {
     {led_pattern_fade_off, led_pattern_snake_up_off, led_pattern_snake_down_off, led_pattern_center_in_off, led_pattern_center_out_off},
     {led_pattern_fade_on, led_pattern_snake_up_on, led_pattern_snake_down_on, led_pattern_center_in_on, led_pattern_center_out_on}
   };
-  
+
   if(this->patterned && this->brightness != led_brightness_off)
   {
     if (animations.IsAnimating())
@@ -63,6 +102,73 @@ void LEDStrip::Update()
   }
 
   strip.Show();
+}
+
+bool LEDStrip::UpdateFinale()
+{
+  switch(this->finale)
+  {
+    case 0:
+      if(this->patterned && this->brightness != led_brightness_off)
+      {
+        if (animations.IsAnimating())
+        {
+          animations.UpdateAnimations();
+          break;
+        }
+      }
+
+      this->SetRed(false);
+      this->SetPatterned(true);
+      this->SetBrightness(led_brightness_high);
+
+      if (this->pattern_group == 0)
+      {
+        this->pattern = led_pattern_fade_on;
+        animations.StartAnimation(0, LED_STRIP_1_SECOND, LEDStrip::animation_callback, this);
+        this->pattern_group = 1;
+      }
+      else
+      {
+        this->pattern = led_pattern_finale_0;
+        animations.StartAnimation(0, LED_STRIP_1_SECOND, LEDStrip::animation_callback, this);
+
+        this->finale++;
+      }
+      
+      break;
+
+    case 1:
+      if (animations.IsAnimating())
+      {
+        animations.UpdateAnimations();
+        break;
+      }
+
+      this->pattern = led_pattern_finale_1;
+      animations.StartAnimation(0, LED_STRIP_8_SECONDS, LEDStrip::animation_callback, this);
+
+      this->SetRed(true);
+      
+      this->finale++;
+      break;
+
+    case 2:
+      if (animations.IsAnimating())
+      {
+        animations.UpdateAnimations();
+        break;
+      }
+
+      this->finale++;
+      // let it fall through to default
+    
+    default:
+      return false;
+  }
+
+  strip.Show();
+  return true;
 }
 
 led_brightness LEDStrip::GetBrightness()
@@ -185,6 +291,26 @@ void LEDStrip::SetMiniLEDs(bool on)
   }
 }
 
+void LEDStrip::StartFinale()
+{
+  finale_save_brightness = this->brightness;
+  finale_save_red = this->red;
+  finale_save_pattern = this->patterned;
+
+  this->finale = 0;
+}
+
+void LEDStrip::EndFinale()
+{
+  this->SetBrightness(finale_save_brightness);
+  this->SetRed(finale_save_red);
+  this->SetPatterned(finale_save_pattern);
+  
+  animations.StopAnimation(0);
+
+  this->finale = -1;
+}
+
 void LEDStrip::UpdateAnimation(const AnimationParam& param)
 {
   // for the start and complete states, make sure we are at a know state
@@ -211,8 +337,11 @@ void LEDStrip::UpdateAnimation(const AnimationParam& param)
     case led_pattern_snake_down_off:  this->UpdateSnakeDownOff(param);  break;
     case led_pattern_center_in_on:    this->UpdateCenterInOn(param);    break;
     case led_pattern_center_in_off:   this->UpdateCenterInOff(param);   break;
-    case led_pattern_center_out_on:   this->UpdateCenterOutOn(param);    break;
-    case led_pattern_center_out_off:  this->UpdateCenterOutOff(param);   break;
+    case led_pattern_center_out_on:   this->UpdateCenterOutOn(param);   break;
+    case led_pattern_center_out_off:  this->UpdateCenterOutOff(param);  break;
+
+    case led_pattern_finale_0:        this->UpdateFinale0(param);       break;
+    case led_pattern_finale_1:        this->UpdateFinale1(param);       break;
   }
 }
 
@@ -306,3 +435,32 @@ void LEDStrip::UpdateCenterOutOff(const AnimationParam& param)
   }
 }
 
+void LEDStrip::UpdateFinale0(const AnimationParam& param)
+{
+  int progress = this->count - (int)(this->count * param.progress);
+
+  this->strip.ClearTo(finale_color_white);
+
+   for(int index = 0; index < 16; index++)
+  {
+    if (index + progress < this->count)
+      this->strip.SetPixelColor(index + progress, finale_color_red);
+  }
+}
+
+void LEDStrip::UpdateFinale1(const AnimationParam& param)
+{
+  if (param.state == AnimationState_Started)
+    this->strip.ClearTo(finale_color_red);
+
+  /*
+  int progress = (int)(20 * param.progress);
+
+  this->strip.ClearTo(finale_color_red);
+
+  for(int index = progress % 4; index < this->count; index+=4)
+  {
+    this->strip.SetPixelColor(index, finale_color_white);
+  }
+  */ 
+}

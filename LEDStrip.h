@@ -14,6 +14,7 @@ enum led_brightness
 
 enum led_pattern
 {
+  // non-finale random patterns
   led_pattern_fade_on,
   led_pattern_fade_off,
   led_pattern_snake_up_on,
@@ -23,7 +24,10 @@ enum led_pattern
   led_pattern_center_out_on,
   led_pattern_center_out_off,
   led_pattern_center_in_on,
-  led_pattern_center_in_off
+  led_pattern_center_in_off,
+  // finale patterns
+  led_pattern_finale_0,
+  led_pattern_finale_1
 };
 
 class LEDStrip
@@ -31,7 +35,10 @@ class LEDStrip
   public:
     LEDStrip(uint8_t pin, uint8_t white_pin, uint8_t red_pin, uint16_t count);
     void Setup();
-    void Update();
+    
+    bool Update(bool finale);
+
+    
 
     led_brightness GetBrightness();
     void SetBrightness(led_brightness brightness);
@@ -57,7 +64,9 @@ class LEDStrip
     led_brightness brightness;
     bool red;
     bool patterned;
-
+    
+    int finale;
+    
     uint8_t pattern_group;    
     led_pattern pattern;
     bool pattern_refresh;
@@ -66,6 +75,7 @@ class LEDStrip
 
     void SetMiniLEDs(bool on);
 
+    void UpdateInternal();
     void UpdateAnimation(const AnimationParam& param);
     void UpdateFadeIn(const AnimationParam& param);
     void UpdateFadeOut(const AnimationParam& param);
@@ -77,6 +87,17 @@ class LEDStrip
     void UpdateCenterInOff(const AnimationParam& param);
     void UpdateCenterOutOn(const AnimationParam& param);
     void UpdateCenterOutOff(const AnimationParam& param);
+
+    void UpdateFinale0(const AnimationParam& param);
+    void UpdateFinale1(const AnimationParam& param);
+
+    led_brightness finale_save_brightness;
+    bool finale_save_red;
+    bool finale_save_pattern;
+
+    void StartFinale();
+    bool UpdateFinale();
+    void EndFinale();
 
     static void animation_callback(const AnimationParam& param, const void * data)
     {

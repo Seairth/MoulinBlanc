@@ -18,6 +18,8 @@ Stepper2 stepper(A2,A3,A4,A5,true,2000);
 
 LEDStrip strip(8,3,6,132);
 
+bool finale = false;
+bool finale_save_stepper;
 
 void setup() {
   SetRandomSeed();
@@ -26,20 +28,47 @@ void setup() {
 }
 
 void loop() {
-  updateStepper();
-  updateStrip();
+  showFinale.Update();
+
+  if (finale)
+  {
+    if (showFinale.IsPressed())
+    {
+      EndFinale();
+    }
+  }
+  else
+  {
+    if (showFinale.IsPressed())
+    {
+      StartFinale();
+    }
+    else
+    {
+      updateStepperState();
+      updateStripState();
+    }
+  }
+
+  if (! strip.Update(finale))
+  {
+    if (finale)
+    {
+      EndFinale();
+    }
+  }
+  
+  stepper.Update();
 }
 
-void updateStepper() {
+void updateStepperState() {
   toggleStepper.Update();
   
   if (toggleStepper.IsPressed())
     stepper.SetOn(!stepper.IsOn());
-
-  stepper.Update();
 }
 
-void updateStrip() {  
+void updateStripState() {  
   toggleBrightness.Update();
   togglePattern.Update();
   toggleColor.Update();
@@ -68,8 +97,22 @@ void updateStrip() {
   {
     strip.SetRed(!strip.IsRed());
   }
+}
 
-  strip.Update();
+void StartFinale()
+{
+  finale_save_stepper = stepper.IsOn();
+
+  stepper.SetOn(true);
+
+  finale = true;
+}
+
+void EndFinale()
+{
+  stepper.SetOn(finale_save_stepper);
+
+  finale = false;
 }
 
 void SetRandomSeed()
