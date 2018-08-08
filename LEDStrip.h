@@ -74,6 +74,7 @@ class LEDStrip
     void SetColor();
 
     void SetMiniLEDs(bool on);
+    void SetMiniLEDsI(uint8_t intensity);
 
     void UpdateInternal();
     void UpdateAnimation(const AnimationParam& param);

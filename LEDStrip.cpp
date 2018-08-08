@@ -123,6 +123,7 @@ bool LEDStrip::UpdateFinale()
       this->SetRed(false);
       this->SetPatterned(true);
       this->SetBrightness(led_brightness_high);
+      this->SetMiniLEDs(false);
 
       if (this->pattern_group == 1)
       {
@@ -293,6 +294,12 @@ void LEDStrip::SetMiniLEDs(bool on)
   }
 }
 
+void LEDStrip::SetMiniLEDsI(uint8_t intensity)
+{
+  analogWrite(this->red?this->red_pin:this->white_pin, intensity);
+  analogWrite(this->red?this->white_pin:this->red_pin, 0);
+}
+
 void LEDStrip::StartFinale()
 {
   finale_save_brightness = this->brightness;
@@ -315,18 +322,35 @@ void LEDStrip::EndFinale()
 
 void LEDStrip::UpdateAnimation(const AnimationParam& param)
 {
-  // for the start and complete states, make sure we are at a know state
-  if (param.state == AnimationState_Started || this->pattern_refresh)
+  if(this->finale == -1)
   {
-    this->strip.ClearTo((pattern_group == 0) ? this->color : led_strip_color_off);
-    this->SetMiniLEDs((pattern_group == 0) ? true : false);
-    
-    this->pattern_refresh = false;
-  }
-  else if (param.state == AnimationState_Completed)
-  {
-    this->strip.ClearTo((pattern_group == 0) ? led_strip_color_off : this->color);
-    this->SetMiniLEDs((pattern_group == 0) ? false : true);
+    // for the start and complete states, make sure we are at a know state
+    if (param.state == AnimationState_Started || this->pattern_refresh)
+    {
+      this->strip.ClearTo((pattern_group == 0) ? this->color : led_strip_color_off);
+      this->SetMiniLEDs((pattern_group == 0) ? true : false);
+      
+      this->pattern_refresh = false;
+    }
+    else if (param.state == AnimationState_Completed)
+    {
+      this->strip.ClearTo((pattern_group == 0) ? led_strip_color_off : this->color);
+      this->SetMiniLEDs((pattern_group == 0) ? false : true);
+    }
+    else
+    {
+      uint8_t brightness = this->brightness == led_brightness_low?LOW_BRIGHTNESS:HIGH_BRIGHTNESS;
+      uint8_t intensity = (uint8_t)(brightness * param.progress);
+
+      if(this->pattern_group == 0)
+      {
+        this->SetMiniLEDsI(brightness-intensity);
+      }
+      else
+      {
+        this->SetMiniLEDsI(intensity);
+      }
+    }
   }
   
   switch(this->pattern)
