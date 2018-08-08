@@ -7,12 +7,14 @@
 
 #define LED_STRIP_TIMESCALE 50
 #define LED_STRIP_1_SECOND  1000 / LED_STRIP_TIMESCALE
+#define LED_STRIP_2_SECONDS 2000 / LED_STRIP_TIMESCALE
 #define LED_STRIP_5_SECONDS 5000 / LED_STRIP_TIMESCALE
 #define LED_STRIP_8_SECONDS 8000 / LED_STRIP_TIMESCALE
 
 const static RgbwColor led_strip_color_off(0,0,0,0);
 const static RgbwColor finale_color_red(HIGH_BRIGHTNESS,0,0,0);
-const static RgbwColor finale_color_white(0,0,0,HIGH_BRIGHTNESS);
+const static RgbwColor finale_color_red_super_bright(255,0,0,0);
+const static RgbwColor finale_color_white(0,0,0,LOW_BRIGHTNESS);
 
 LEDStrip::LEDStrip(uint8_t pin, uint8_t white_pin, uint8_t red_pin, uint16_t count) : strip(count, pin), animations(1,LED_STRIP_TIMESCALE)
 {
@@ -122,16 +124,16 @@ bool LEDStrip::UpdateFinale()
       this->SetPatterned(true);
       this->SetBrightness(led_brightness_high);
 
-      if (this->pattern_group == 0)
+      if (this->pattern_group == 1)
       {
         this->pattern = led_pattern_fade_on;
         animations.StartAnimation(0, LED_STRIP_1_SECOND, LEDStrip::animation_callback, this);
-        this->pattern_group = 1;
+        this->pattern_group = 0;
       }
       else
       {
         this->pattern = led_pattern_finale_0;
-        animations.StartAnimation(0, LED_STRIP_1_SECOND, LEDStrip::animation_callback, this);
+        animations.StartAnimation(0, LED_STRIP_2_SECONDS, LEDStrip::animation_callback, this);
 
         this->finale++;
       }
@@ -439,12 +441,12 @@ void LEDStrip::UpdateFinale0(const AnimationParam& param)
 {
   int progress = this->count - (int)(this->count * param.progress);
 
-  this->strip.ClearTo(finale_color_white);
+  this->strip.ClearTo(led_strip_color_off);
 
-   for(int index = 0; index < 16; index++)
+  for(int index = 0; index < 15; index++)
   {
     if (index + progress < this->count)
-      this->strip.SetPixelColor(index + progress, finale_color_red);
+      this->strip.SetPixelColor(index + progress, finale_color_red_super_bright);
   }
 }
 
